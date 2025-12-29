@@ -247,6 +247,43 @@ input[type="file"] {
   opacity: 1;
 }
 
+.toolbar {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+}
+
+.icon-btn {
+  width: auto;
+  min-width: 40px;
+  padding: 8px;
+  font-size: 1.1rem;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.icon-btn:hover {
+  opacity: 1;
+}
+
+.icon-btn.active {
+  opacity: 1;
+  background: var(--accent);
+}
+
 .modal {
   display: none;
   position: fixed;
@@ -371,12 +408,33 @@ input[type="file"] {
   <h1>Event Tracker</h1>
 
   <div class="card">
-    <button class="secondary toggle-btn" onclick="toggleAddSection()">
-      <span id="toggleIcon">+</span>
-      <span>Add Event</span>
-    </button>
-    <div class="add-section" id="addSection">
-      <div class="row" style="margin-top:10px;">
+    <input type="text" id="searchInput" placeholder="Search events..." oninput="render()" style="margin-bottom: 8px;" />
+    <div class="toolbar">
+      <button class="secondary icon-btn" onclick="toggleAddSection()" title="Add Event" id="addBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </button>
+      <button class="secondary icon-btn" onclick="toggleSort()" title="Toggle Sort" id="sortBtn">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" id="sortIcon">
+        </svg>
+      </button>
+      <button class="secondary icon-btn" onclick="showExportOptions()" title="Export">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+        </svg>
+      </button>
+      <button class="secondary icon-btn" onclick="showImportOptions()" title="Import">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="card" style="display: none;" id="addCard">
+    <div class="add-section expanded">
+      <div class="row" style="margin-top:0;">
         <div>
           <label>Date</label>
           <input type="text" id="dateInput" placeholder="dd/mm/yyyy" maxlength="10" inputmode="numeric" />
@@ -387,22 +445,9 @@ input[type="file"] {
           <textarea id="textInput" placeholder="Describe..."></textarea>
         </div>
       </div>
-      <div style="margin-top:8px;">
-        <button onclick="addEvent()">Save Event</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="compact-controls">
-      <input type="text" id="searchInput" placeholder="Search events..." oninput="render()" />
-      <select id="sortSelect" onchange="render()">
-        <option value="desc">Newest first</option>
-        <option value="asc">Oldest first</option>
-      </select>
-      <div class="row-controls">
-        <button class="secondary" onclick="showExportOptions()">Export</button>
-        <button class="secondary" onclick="showImportOptions()">Import</button>
+      <div style="margin-top:8px; display: flex; gap: 8px;">
+        <button onclick="addEvent()" style="flex: 1;">Save</button>
+        <button class="secondary" onclick="cancelAdd()" style="flex: 1;">Cancel</button>
       </div>
     </div>
   </div>
@@ -448,6 +493,7 @@ const STORAGE_KEY = "event_tracker_data";
 
 let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 let editingId = null;
+let sortOrder = 'desc'; // 'asc' or 'desc'
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
@@ -552,20 +598,45 @@ function setupDateInput() {
 }
 
 function toggleAddSection() {
-  const section = document.getElementById("addSection");
-  const icon = document.getElementById("toggleIcon");
-  const isExpanding = !section.classList.contains("expanded");
+  const card = document.getElementById("addCard");
+  const addBtn = document.getElementById("addBtn");
+  const isVisible = card.style.display !== "none";
   
-  section.classList.toggle("expanded");
-  icon.textContent = section.classList.contains("expanded") ? "−" : "+";
-  
-  // Reset form when closing
-  if (!isExpanding) {
+  if (isVisible) {
+    card.style.display = "none";
+    addBtn.classList.remove("active");
     editingId = null;
     document.getElementById("dateInput").value = "";
     document.getElementById("textInput").value = "";
-    document.querySelector(".toggle-btn span:last-child").textContent = "Add Event";
+    showDateFeedback(true, true);
+  } else {
+    card.style.display = "block";
+    addBtn.classList.add("active");
+    document.getElementById("dateInput").focus();
   }
+}
+
+function cancelAdd() {
+  toggleAddSection();
+}
+
+function updateSortIcon() {
+  const sortIcon = document.getElementById("sortIcon");
+  if (!sortIcon) return;
+
+  if (sortOrder === 'desc') {
+    // Bars arrow down icon (newest first)
+    sortIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0-3.75-3.75M17.25 21 21 17.25" />';
+  } else {
+    // Bars arrow up icon (oldest first)
+    sortIcon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />';
+  }
+}
+
+function toggleSort() {
+  sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+  updateSortIcon();
+  render();
 }
 
 function addEvent() {
@@ -617,11 +688,11 @@ function addEvent() {
   save();
   render();
   
-  // Collapse the add section after adding
-  const section = document.getElementById("addSection");
-  const icon = document.getElementById("toggleIcon");
-  section.classList.remove("expanded");
-  icon.textContent = "+";
+  // Hide add card
+  const card = document.getElementById("addCard");
+  const addBtn = document.getElementById("addBtn");
+  card.style.display = "none";
+  addBtn.classList.remove("active");
 }
 
 function editEvent(id) {
@@ -633,13 +704,12 @@ function editEvent(id) {
   document.getElementById("dateInput").value = formatDate(event.date);
   showDateFeedback(true);
   document.getElementById("textInput").value = event.text;
-  document.querySelector(".toggle-btn span:last-child").textContent = "Edit Event";
   
-  // Expand the add section
-  const section = document.getElementById("addSection");
-  const icon = document.getElementById("toggleIcon");
-  section.classList.add("expanded");
-  icon.textContent = "−";
+  // Show add card
+  const card = document.getElementById("addCard");
+  const addBtn = document.getElementById("addBtn");
+  card.style.display = "block";
+  addBtn.classList.add("active");
   
   // Scroll to top
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -654,7 +724,6 @@ function deleteEvent(id) {
 function render() {
   const list = document.getElementById("eventList");
   const search = document.getElementById("searchInput").value.toLowerCase();
-  const sort = document.getElementById("sortSelect").value;
 
   let filtered = events.filter(e =>
     e.text.toLowerCase().includes(search) ||
@@ -662,7 +731,7 @@ function render() {
   );
 
   filtered.sort((a, b) =>
-    sort === "asc"
+    sortOrder === "asc"
       ? a.date.localeCompare(b.date)
       : b.date.localeCompare(a.date)
   );
@@ -681,7 +750,7 @@ function render() {
 
   // Render grouped by year
   const years = Object.keys(eventsByYear).sort((a, b) => 
-    sort === "asc" ? a.localeCompare(b) : b.localeCompare(a)
+    sortOrder === "asc" ? a.localeCompare(b) : b.localeCompare(a)
   );
 
   years.forEach(year => {
@@ -871,6 +940,9 @@ window.addEventListener("scroll", () => {
 });
 
 render();
+
+// Initialize sort icon
+updateSortIcon();
 
 // Setup date input
 setupDateInput();
