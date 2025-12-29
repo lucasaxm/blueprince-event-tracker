@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Event Tracker</title>
+
+<style>
+:root {
+  --bg: #121212;
+  --card: #1e1e1e;
+  --text: #eaeaea;
+  --muted: #9a9a9a;
+  --accent: #4da3ff;
+  --danger: #ff5c5c;
+  --border: #2a2a2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px;
+}
+
+h1 {
+  margin: 0 0 10px;
+  font-size: 1.4rem;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  margin-bottom: 10px;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+input, textarea, button, select {
+  width: 100%;
+  background: #181818;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+button {
+  background: var(--accent);
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: #2a2a2a;
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+}
+
+.row > * {
+  flex: 1;
+}
+
+.controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.year-section {
+  scroll-margin-top: 60px;
+}
+
+.year-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 12px 0 8px 0;
+  color: var(--text);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+  margin: 0 -10px;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.event {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.event:last-child {
+  border-bottom: none;
+}
+
+.event-date {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.event-text {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.event-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+  opacity: 0.6;
+}
+
+.event-actions button {
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  font-weight: 400;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.event-actions button:hover {
+  opacity: 1;
+  color: var(--text);
+}
+
+.event-actions button.danger:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+input[type="file"] {
+  padding: 6px;
+}
+
+.add-section {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.add-section.expanded {
+  max-height: 300px;
+}
+
+.toggle-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 0.9rem;
+  padding: 8px;
+}
+
+.compact-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.compact-controls .row-controls {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.compact-controls button,
+.compact-controls label {
+  font-size: 0.8rem;
+  padding: 7px;
+  opacity: 0.8;
+  font-weight: 400;
+}
+
+.compact-controls button:hover,
+.compact-controls label:hover {
+  opacity: 1;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 1000;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.modal.active {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+  line-height: 1;
+}
+
+.json-textarea {
+  font-family: 'Courier New', monospace;
+  font-size: 0.85rem;
+  min-height: 200px;
+  margin: 10px 0;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.year-scrubber {
+  position: fixed;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(30, 30, 30, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 6px;
+  max-height: 70vh;
+  overflow-y: auto;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  scrollbar-width: none;
+}
+
+.year-scrubber::-webkit-scrollbar {
+  display: none;
+}
+
+.year-scrubber.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.year-item {
+  padding: 6px 10px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  user-select: none;
+  font-weight: 500;
+}
+
+.year-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.year-item.active {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Event Tracker</h1>
+
+  <div class="card">
+    <button class="secondary toggle-btn" onclick="toggleAddSection()">
+      <span id="toggleIcon">+</span>
+      <span>Add Event</span>
+    </button>
+    <div class="add-section" id="addSection">
+      <div class="row" style="margin-top:10px;">
+        <div>
+          <label>Date</label>
+          <input type="date" id="dateInput" />
+        </div>
+        <div>
+          <label>Event</label>
+          <textarea id="textInput" placeholder="Describe..."></textarea>
+        </div>
+      </div>
+      <div style="margin-top:8px;">
+        <button onclick="addEvent()">Save Event</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="compact-controls">
+      <input type="text" id="searchInput" placeholder="Search events..." oninput="render()" />
+      <select id="sortSelect" onchange="render()">
+        <option value="desc">Newest first</option>
+        <option value="asc">Oldest first</option>
+      </select>
+      <div class="row-controls">
+        <button class="secondary" onclick="showExportOptions()">Export</button>
+        <button class="secondary" onclick="showImportOptions()">Import</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="eventList"></div>
+</div>
+
+<div class="year-scrubber" id="yearScrubber"></div>
+
+<div class="modal" id="exportModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Export JSON</h2>
+      <button class="modal-close" onclick="closeModal('exportModal')">&times;</button>
+    </div>
+    <textarea class="json-textarea" id="exportTextarea" readonly></textarea>
+    <div class="modal-actions">
+      <button onclick="copyToClipboard()">Copy to Clipboard</button>
+      <button class="secondary" onclick="downloadJSON()">Download File</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="importModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Import JSON</h2>
+      <button class="modal-close" onclick="closeModal('importModal')">&times;</button>
+    </div>
+    <textarea class="json-textarea" id="importTextarea" placeholder="Paste JSON here..."></textarea>
+    <div class="modal-actions">
+      <button onclick="importFromText()">Import from Text</button>
+      <label class="secondary" style="text-align:center; border-radius:6px; border:1px solid var(--border); cursor:pointer; margin:0; width:auto; flex:1;">
+        Upload File
+        <input type="file" accept="application/json" hidden onchange="importJSON(event)" />
+      </label>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = "event_tracker_data";
+
+let events = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+let editingId = null;
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+}
+
+function toggleAddSection() {
+  const section = document.getElementById("addSection");
+  const icon = document.getElementById("toggleIcon");
+  const isExpanding = !section.classList.contains("expanded");
+  
+  section.classList.toggle("expanded");
+  icon.textContent = section.classList.contains("expanded") ? "−" : "+";
+  
+  // Reset form when closing
+  if (!isExpanding) {
+    editingId = null;
+    document.getElementById("dateInput").value = "";
+    document.getElementById("textInput").value = "";
+    document.querySelector(".toggle-btn span:last-child").textContent = "Add Event";
+  }
+}
+
+function addEvent() {
+  const date = document.getElementById("dateInput").value;
+  const text = document.getElementById("textInput").value.trim();
+
+  if (!date || !text) return;
+
+  if (editingId) {
+    // Update existing event
+    const event = events.find(e => e.id === editingId);
+    if (event) {
+      event.date = date;
+      event.text = text;
+    }
+    editingId = null;
+    document.querySelector(".toggle-btn span:last-child").textContent = "Add Event";
+  } else {
+    // Add new event
+    events.push({
+      id: crypto.randomUUID(),
+      date,
+      text
+    });
+  }
+
+  document.getElementById("dateInput").value = "";
+  document.getElementById("textInput").value = "";
+  save();
+  render();
+  
+  // Collapse the add section after adding
+  const section = document.getElementById("addSection");
+  const icon = document.getElementById("toggleIcon");
+  section.classList.remove("expanded");
+  icon.textContent = "+";
+}
+
+function editEvent(id) {
+  const event = events.find(e => e.id === id);
+  if (!event) return;
+  
+  editingId = id;
+  document.getElementById("dateInput").value = event.date;
+  document.getElementById("textInput").value = event.text;
+  document.querySelector(".toggle-btn span:last-child").textContent = "Edit Event";
+  
+  // Expand the add section
+  const section = document.getElementById("addSection");
+  const icon = document.getElementById("toggleIcon");
+  section.classList.add("expanded");
+  icon.textContent = "−";
+  
+  // Scroll to top
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function deleteEvent(id) {
+  events = events.filter(e => e.id !== id);
+  save();
+  render();
+}
+
+function render() {
+  const list = document.getElementById("eventList");
+  const search = document.getElementById("searchInput").value.toLowerCase();
+  const sort = document.getElementById("sortSelect").value;
+
+  let filtered = events.filter(e =>
+    e.text.toLowerCase().includes(search) ||
+    e.date.includes(search)
+  );
+
+  filtered.sort((a, b) =>
+    sort === "asc"
+      ? a.date.localeCompare(b.date)
+      : b.date.localeCompare(a.date)
+  );
+
+  list.innerHTML = filtered.length === 0
+    ? "<p style='color:var(--muted);'>No events found.</p>"
+    : "";
+
+  // Group events by year
+  const eventsByYear = {};
+  filtered.forEach(e => {
+    const year = e.date.split("-")[0];
+    if (!eventsByYear[year]) eventsByYear[year] = [];
+    eventsByYear[year].push(e);
+  });
+
+  // Render grouped by year
+  const years = Object.keys(eventsByYear).sort((a, b) => 
+    sort === "asc" ? a.localeCompare(b) : b.localeCompare(a)
+  );
+
+  years.forEach(year => {
+    const yearSection = document.createElement("div");
+    yearSection.className = "year-section";
+    yearSection.id = `year-${year}`;
+    
+    const yearHeader = document.createElement("div");
+    yearHeader.className = "year-header";
+    yearHeader.textContent = year;
+    yearSection.appendChild(yearHeader);
+
+    eventsByYear[year].forEach(e => {
+      const div = document.createElement("div");
+      div.className = "event";
+      div.innerHTML = `
+        <div class="event-date">${formatDate(e.date)}</div>
+        <div class="event-text">${escapeHTML(e.text)}</div>
+        <div class="event-actions">
+          <button onclick="editEvent('${e.id}')">edit</button>
+          <button class="danger" onclick="deleteEvent('${e.id}')">delete</button>
+        </div>
+      `;
+      yearSection.appendChild(div);
+    });
+
+    list.appendChild(yearSection);
+  });
+
+  updateYearScrubber(years);
+}
+
+function formatDate(d) {
+  const [y, m, day] = d.split("-");
+  return `${day}/${m}/${y}`;
+}
+
+function showExportOptions() {
+  document.getElementById("exportTextarea").value = JSON.stringify(events, null, 2);
+  document.getElementById("exportModal").classList.add("active");
+}
+
+function showImportOptions() {
+  document.getElementById("importTextarea").value = "";
+  document.getElementById("importModal").classList.add("active");
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove("active");
+}
+
+function copyToClipboard() {
+  const textarea = document.getElementById("exportTextarea");
+  textarea.select();
+  document.execCommand("copy");
+  alert("JSON copied to clipboard!");
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "event-tracker.json";
+  a.click();
+  closeModal("exportModal");
+}
+
+function importFromText() {
+  const text = document.getElementById("importTextarea").value.trim();
+  if (!text) return;
+  
+  try {
+    const data = JSON.parse(text);
+    if (Array.isArray(data)) {
+      events = data;
+      save();
+      render();
+      closeModal("importModal");
+      alert("Events imported successfully!");
+    } else {
+      alert("Invalid JSON format. Expected an array of events.");
+    }
+  } catch (error) {
+    alert("Invalid JSON: " + error.message);
+  }
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(events, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "event-tracker.json";
+  a.click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const data = JSON.parse(reader.result);
+      if (Array.isArray(data)) {
+        events = data;
+        save();
+        render();
+        closeModal("importModal");
+        alert("Events imported successfully!");
+      }
+    } catch {}
+  };
+  reader.readAsText(file);
+}
+
+function escapeHTML(str) {
+  return str.replace(/[&<>"']/g, m => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[m]));
+}
+
+function updateYearScrubber(years) {
+  const scrubber = document.getElementById("yearScrubber");
+  scrubber.innerHTML = "";
+  
+  years.forEach(year => {
+    const yearItem = document.createElement("div");
+    yearItem.className = "year-item";
+    yearItem.textContent = year;
+    yearItem.dataset.year = year;
+    yearItem.onclick = () => scrollToYear(year);
+    scrubber.appendChild(yearItem);
+  });
+}
+
+function scrollToYear(year) {
+  const section = document.getElementById(`year-${year}`);
+  if (section) {
+    section.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+let scrollTimeout;
+let isScrolling = false;
+
+function updateActiveYear() {
+  const sections = document.querySelectorAll(".year-section");
+  const scrubber = document.getElementById("yearScrubber");
+  let activeYear = null;
+
+  sections.forEach(section => {
+    const rect = section.getBoundingClientRect();
+    if (rect.top <= 100 && rect.bottom >= 100) {
+      activeYear = section.id.replace("year-", "");
+    }
+  });
+
+  if (activeYear) {
+    scrubber.querySelectorAll(".year-item").forEach(item => {
+      if (item.dataset.year === activeYear) {
+        item.classList.add("active");
+      } else {
+        item.classList.remove("active");
+      }
+    });
+  }
+}
+
+window.addEventListener("scroll", () => {
+  const scrubber = document.getElementById("yearScrubber");
+  
+  // Show scrubber when scrolling
+  if (events.length > 0) {
+    scrubber.classList.add("visible");
+    updateActiveYear();
+  }
+  
+  // Hide after scrolling stops
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    scrubber.classList.remove("visible");
+  }, 1500);
+});
+
+render();
+
+// Show scrubber briefly on page load if there are events
+if (events.length > 0) {
+  setTimeout(() => {
+    const scrubber = document.getElementById("yearScrubber");
+    scrubber.classList.add("visible");
+    updateActiveYear();
+    setTimeout(() => {
+      scrubber.classList.remove("visible");
+    }, 2000);
+  }, 500);
+}
+
+// Close modal when clicking outside
+document.querySelectorAll(".modal").forEach(modal => {
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) {
+      modal.classList.remove("active");
+    }
+  });
+});
+</script>
+</body>
+</html>
