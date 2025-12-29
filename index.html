@@ -63,6 +63,25 @@ input, textarea, button, select {
   font-size: 0.95rem;
 }
 
+input.error {
+  border-color: var(--danger);
+}
+
+input.success {
+  border-color: #4caf50;
+}
+
+.error-message {
+  font-size: 0.75rem;
+  color: var(--danger);
+  margin-top: 4px;
+  display: none;
+}
+
+.error-message.visible {
+  display: block;
+}
+
 textarea {
   resize: vertical;
   min-height: 60px;
@@ -90,6 +109,24 @@ button.danger {
 
 .row > * {
   flex: 1;
+}
+
+.date-input-wrapper {
+  position: relative;
+  display: flex;
+  gap: 6px;
+}
+
+.date-input-wrapper input {
+  flex: 1;
+}
+
+.calendar-btn {
+  width: auto;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  font-size: 1rem;
+  cursor: pointer;
 }
 
 .controls {
@@ -342,7 +379,8 @@ input[type="file"] {
       <div class="row" style="margin-top:10px;">
         <div>
           <label>Date</label>
-          <input type="date" id="dateInput" />
+          <input type="text" id="dateInput" placeholder="dd/mm/yyyy" maxlength="10" inputmode="numeric" />
+          <div class="error-message" id="dateError">Invalid date format</div>
         </div>
         <div>
           <label>Event</label>
@@ -415,6 +453,104 @@ function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(events));
 }
 
+function formatDateInput(input) {
+  let value = input.replace(/\D/g, ''); // Remove non-digits
+  
+  if (value.length >= 2) {
+    value = value.slice(0, 2) + '/' + value.slice(2);
+  }
+  if (value.length >= 5) {
+    value = value.slice(0, 5) + '/' + value.slice(5, 9);
+  }
+  
+  return value;
+}
+
+function isValidDate(dateStr) {
+  const parts = dateStr.split('/');
+  if (parts.length !== 3) return false;
+  
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+  
+  if (parts[0].length !== 2 || parts[1].length !== 2 || parts[2].length !== 4) return false;
+  if (isNaN(day) || isNaN(month) || isNaN(year)) return false;
+  if (day < 1 || day > 31) return false;
+  if (month < 1 || month > 12) return false;
+  if (year < 1000 || year > 9999) return false;
+  
+  // Check valid day for month
+  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  const isLeapYear = (year % 4 === 0 && year % 100 !== 0) || (year % 400 === 0);
+  const maxDay = month === 2 && isLeapYear ? 29 : daysInMonth[month - 1];
+  
+  return day <= maxDay;
+}
+
+function showDateFeedback(isValid, isEmpty = false) {
+  const input = document.getElementById('dateInput');
+  const error = document.getElementById('dateError');
+  
+  if (!input || !error) return; // Elements might not exist yet
+  
+  input.classList.remove('error', 'success');
+  error.classList.remove('visible');
+  
+  if (isEmpty) return;
+  
+  if (isValid) {
+    input.classList.add('success');
+  } else {
+    input.classList.add('error');
+    error.classList.add('visible');
+  }
+}
+
+function setupDateInput() {
+  const dateInput = document.getElementById('dateInput');
+  if (!dateInput) return; // Element might not be ready
+  
+  dateInput.addEventListener('input', (e) => {
+    const cursorPos = e.target.selectionStart;
+    const oldValue = e.target.value;
+    const formatted = formatDateInput(oldValue);
+    
+    e.target.value = formatted;
+    
+    // Adjust cursor position after formatting
+    if (formatted.length < oldValue.length) {
+      e.target.setSelectionRange(cursorPos, cursorPos);
+    } else if (formatted[cursorPos - 1] === '/') {
+      e.target.setSelectionRange(cursorPos + 1, cursorPos + 1);
+    } else {
+      e.target.setSelectionRange(cursorPos, cursorPos);
+    }
+    
+    // Validate if complete
+    if (formatted.length === 10) {
+      showDateFeedback(isValidDate(formatted));
+    } else {
+      showDateFeedback(true, true);
+    }
+  });
+  
+  dateInput.addEventListener('blur', (e) => {
+    const value = e.target.value.trim();
+    if (value.length > 0 && value.length !== 10) {
+      showDateFeedback(false);
+    } else if (value.length === 10) {
+      showDateFeedback(isValidDate(value));
+    }
+  });
+  
+  dateInput.addEventListener('focus', (e) => {
+    if (e.target.value === '') {
+      showDateFeedback(true, true);
+    }
+  });
+}
+
 function toggleAddSection() {
   const section = document.getElementById("addSection");
   const icon = document.getElementById("toggleIcon");
@@ -433,10 +569,29 @@ function toggleAddSection() {
 }
 
 function addEvent() {
-  const date = document.getElementById("dateInput").value;
+  const dateInput = document.getElementById("dateInput").value.trim();
   const text = document.getElementById("textInput").value.trim();
 
-  if (!date || !text) return;
+  if (!dateInput || !text) {
+    if (!dateInput) showDateFeedback(false);
+    if (!text) {
+      const textInput = document.getElementById("textInput");
+      textInput.style.borderColor = 'var(--danger)';
+      setTimeout(() => {
+        textInput.style.borderColor = '';
+      }, 2000);
+    }
+    return;
+  }
+  
+  if (!isValidDate(dateInput)) {
+    showDateFeedback(false);
+    return;
+  }
+  
+  // Convert dd/mm/yyyy to yyyy-mm-dd
+  const parts = dateInput.split('/');
+  const date = `${parts[2]}-${parts[1]}-${parts[0]}`;
 
   if (editingId) {
     // Update existing event
@@ -458,6 +613,7 @@ function addEvent() {
 
   document.getElementById("dateInput").value = "";
   document.getElementById("textInput").value = "";
+  showDateFeedback(true, true);
   save();
   render();
   
@@ -473,7 +629,9 @@ function editEvent(id) {
   if (!event) return;
   
   editingId = id;
-  document.getElementById("dateInput").value = event.date;
+  // Convert yyyy-mm-dd to dd/mm/yyyy
+  document.getElementById("dateInput").value = formatDate(event.date);
+  showDateFeedback(true);
   document.getElementById("textInput").value = event.text;
   document.querySelector(".toggle-btn span:last-child").textContent = "Edit Event";
   
@@ -713,6 +871,9 @@ window.addEventListener("scroll", () => {
 });
 
 render();
+
+// Setup date input
+setupDateInput();
 
 // Show scrubber briefly on page load if there are events
 if (events.length > 0) {
